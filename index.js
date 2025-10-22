@@ -5,6 +5,8 @@ import authRoutes from "./routes/authroutes/authRoutes.js";
 import { requireAdmin, requireCoach, requireAuth } from "./middlerware/authMiddleware.js";
 import coachRouter from "./routes/coachRoutes/coachRouter.js"
 import promoRoutes from "./routes/promoRoutes/promoRoutes.js"
+import applicationRoutes from "./routes/applicationformroute/applicationRoutes.js"
+import trainingRoutes from "./routes/trainingroute/trainingRoutes.js"
 
 const app = express();
 const PORT = 4000;
@@ -40,6 +42,8 @@ app.use(
 app.use("/api/auth", authRoutes);
 app.use("/api", promoRoutes)
 app.use("/api", coachRouter)
+app.use("/api", applicationRoutes)
+app.use("/api",trainingRoutes)
 
 // Example protected routes - Add these based on your needs
 
