@@ -42,7 +42,7 @@ export const getRevenueData = async (req, res) => {
       FROM applications a
       JOIN packages p ON a.package_id = p.package_id
       WHERE a.application_status = 'approved'
-      GROUP BY DATE_FORMAT(submitted_at, '%Y-%m')
+      GROUP BY DATE_FORMAT(submitted_at, '%Y-%m'), DATE_FORMAT(submitted_at, '%b %Y')
       ORDER BY month DESC
       LIMIT 12
     `);
