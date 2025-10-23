@@ -7,6 +7,7 @@ import coachRouter from "./routes/coachRoutes/coachRouter.js"
 import promoRoutes from "./routes/promoRoutes/promoRoutes.js"
 import applicationRoutes from "./routes/applicationformroute/applicationRoutes.js"
 import trainingRoutes from "./routes/trainingroute/trainingRoutes.js"
+import admindashboardRoutes from "./routes/admindashboardroute/admindashboardRoutes.js"
 
 const app = express();
 const PORT = 4000;
@@ -44,6 +45,7 @@ app.use("/api", promoRoutes)
 app.use("/api", coachRouter)
 app.use("/api", applicationRoutes)
 app.use("/api",trainingRoutes)
+app.use("/api",admindashboardRoutes)
 
 // Example protected routes - Add these based on your needs
 
