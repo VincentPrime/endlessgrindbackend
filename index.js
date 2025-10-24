@@ -18,7 +18,7 @@ app.use(express.json());
 // CORS - allow credentials
 app.use(
   cors({
-    origin: "http://localhost:3000", // Your Next.js frontend
+    origin: ["http://localhost:3000"],// Your Next.js frontend
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
     credentials: true,
   })
@@ -32,9 +32,9 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false, // Set to true in production with HTTPS
+      secure: true, // Set to true in production with HTTPS
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: "lax",
+      sameSite: "none",
     },
   })
 );
