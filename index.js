@@ -12,45 +12,55 @@ import admindashboardRoutes from "./routes/admindashboardroute/admindashboardRou
 const app = express();
 const PORT = 4000;
 
+// ✅ IMPORTANT: Set trust proxy BEFORE session middleware
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(express.json());
 
-// CORS - allow credentials
+// ✅ FIXED CORS - Must be before session
 app.use(
   cors({
-    origin: ["http://localhost:3000"],// Your Next.js frontend
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
-    credentials: true,
+    origin: "http://localhost:3000", // Remove array, just use string
+    credentials: true, // Allow credentials
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
-// Session configuration
+// ✅ FIXED Session configuration
 app.use(
   session({
-    secret: "your-secret-key-change-this-in-production", // Change this!
+    secret: "your-secret-key-change-this-in-production",
     resave: false,
     saveUninitialized: false,
-    proxy:true,
     cookie: {
       httpOnly: true,
-      secure: true, // Set to true in production with HTTPS
+      secure: false, // ✅ Must be false for localhost
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: "none",
+      sameSite: 'lax', // ✅ Changed from 'none' to 'lax' for localhost
+      path: '/', // ✅ Explicitly set path
     },
   })
 );
+
+// ✅ Add debug middleware to see cookies
+app.use((req, res, next) => {
+  console.log('📝 Session ID:', req.sessionID);
+  console.log('👤 Session User:', req.session.user);
+  console.log('🍪 Cookies:', req.headers.cookie);
+  next();
+});
 
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api", promoRoutes)
 app.use("/api", coachRouter)
 app.use("/api", applicationRoutes)
-app.use("/api",trainingRoutes)
-app.use("/api",admindashboardRoutes)
+app.use("/api", trainingRoutes)
+app.use("/api", admindashboardRoutes)
 
-// Example protected routes - Add these based on your needs
-
-// 🔒 Admin-only routes
+// Protected routes
 app.get("/api/admin/users", requireAdmin, (req, res) => {
   res.json({ message: "List of all users", user: req.session.user });
 });
@@ -59,12 +69,10 @@ app.get("/api/admin/coaches", requireAdmin, (req, res) => {
   res.json({ message: "List of all coaches", user: req.session.user });
 });
 
-// 🔒 Coach-only routes  
 app.get("/api/coach/clients", requireCoach, (req, res) => {
   res.json({ message: "List of my clients", user: req.session.user });
 });
 
-// 🔒 Any authenticated user
 app.get("/api/user/profile", requireAuth, (req, res) => {
   res.json({ message: "User profile", user: req.session.user });
 });

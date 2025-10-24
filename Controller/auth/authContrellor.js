@@ -19,9 +19,9 @@ export const login = async (req, res) => {
       if (!isMatch)
         return res.status(400).json({ message: "Invalid credentials" });
 
-      // Store user in session - FIXED: use user_id instead of id
+      // Store user in session
       req.session.user = {
-        user_id: user.user_id,  // ✅ Changed from 'id' to 'user_id'
+        user_id: user.user_id,
         firstname: user.firstname,
         lastname: user.lastname,
         email: user.email,
@@ -29,20 +29,21 @@ export const login = async (req, res) => {
         image: user.image
       };
 
-      // Save session explicitly to ensure it's persisted
-      req.session.save((err) => {
+      // Save session explicitly
+      return req.session.save((err) => {  // ✅ ADD RETURN HERE
         if (err) {
-          console.error('Session save error:', err);
+          console.error('❌ Session save error:', err);
           return res.status(500).json({ message: "Failed to create session" });
         }
+        
+        console.log('✅ Session saved successfully:', req.session.user);
+        console.log('✅ Session ID:', req.sessionID);
         
         return res.json({
           message: "Logged in",
           user: req.session.user,
         });
       });
-      
-      return; // Prevent further execution
     }
 
     // ✅ If not found in users_infos, check coaches table
@@ -55,36 +56,37 @@ export const login = async (req, res) => {
       if (!isMatch)
         return res.status(400).json({ message: "Invalid credentials" });
 
-      // Store coach in session - FIXED: use user_id for consistency
+      // Store coach in session
       req.session.user = {
-        user_id: coach.coach_id,  // ✅ Changed from 'id' to 'user_id'
+        user_id: coach.coach_id,
         coach_name: coach.coach_name,
         email: coach.email,
         role: 'coach',
         profile_image: coach.profile_image
       };
 
-      // Save session explicitly
-      req.session.save((err) => {
+      // Save session explicitly - ✅ THIS WAS THE BUG!
+      return req.session.save((err) => {  // ✅ MUST HAVE RETURN HERE
         if (err) {
-          console.error('Session save error:', err);
+          console.error('❌ Session save error:', err);
           return res.status(500).json({ message: "Failed to create session" });
         }
+        
+        console.log('✅ Coach session saved successfully:', req.session.user);
+        console.log('✅ Session ID:', req.sessionID);
         
         return res.json({
           message: "Logged in",
           user: req.session.user,
         });
       });
-      
-      return; // Prevent further execution
     }
 
     // ✅ If not found in either table
     return res.status(400).json({ message: "Invalid credentials" });
 
   } catch (error) {
-    console.error(error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ message: "Server error" });
   }
 };
