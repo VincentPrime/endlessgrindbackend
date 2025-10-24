@@ -30,6 +30,7 @@ app.use(
     secret: "your-secret-key-change-this-in-production", // Change this!
     resave: false,
     saveUninitialized: false,
+    proxy:true,
     cookie: {
       httpOnly: true,
       secure: true, // Set to true in production with HTTPS
