@@ -44,13 +44,6 @@ app.use(
   })
 );
 
-// ✅ Add debug middleware to see cookies
-app.use((req, res, next) => {
-  console.log('📝 Session ID:', req.sessionID);
-  console.log('👤 Session User:', req.session.user);
-  console.log('🍪 Cookies:', req.headers.cookie);
-  next();
-});
 
 // Routes
 app.use("/api/auth", authRoutes);

@@ -1,5 +1,180 @@
 import pool from '../../db/endlessgrinddb.js';
 import bcrypt from 'bcryptjs';
+import multer from 'multer';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// Configure multer for memory storage (we'll upload to Supabase)
+const storage = multer.memoryStorage();
+
+const fileFilter = (req, file, cb) => {
+  // Accept images only
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed!'), false);
+  }
+};
+
+export const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+// 🆕 UPDATE PROFILE
+export const updateProfile = async (req, res) => {
+  try {
+    if (!req.session.user) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    const userId = req.session.user.user_id;
+    const { firstname, middlename, lastname, address, email, password } = req.body;
+    
+    // Build dynamic update query
+    const updates = [];
+    const values = [];
+
+    if (firstname) {
+      updates.push('firstname = ?');
+      values.push(firstname);
+    }
+    if (middlename !== undefined) { // Allow empty string to clear middlename
+      updates.push('middlename = ?');
+      values.push(middlename || null);
+    }
+    if (lastname) {
+      updates.push('lastname = ?');
+      values.push(lastname);
+    }
+    if (address !== undefined) { // Allow empty string
+      updates.push('address = ?');
+      values.push(address);
+    }
+    if (email) {
+      // Check if email already exists for another user
+      const [existingUser] = await pool.query(
+        'SELECT user_id FROM users_infos WHERE email = ? AND user_id != ?',
+        [email, userId]
+      );
+      if (existingUser.length > 0) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+      updates.push('email = ?');
+      values.push(email);
+    }
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updates.push('password = ?');
+      values.push(hashedPassword);
+    }
+
+    // Handle profile image upload to Supabase
+    if (req.file) {
+      try {
+        // Generate unique filename
+        const fileExt = req.file.originalname.split('.').pop();
+        const fileName = `profile-${userId}-${Date.now()}.${fileExt}`;
+        const filePath = `pictures/${fileName}`;
+
+        // Upload to Supabase Storage (bucket: promo, folder: pictures)
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('promo')
+          .upload(filePath, req.file.buffer, {
+            contentType: req.file.mimetype,
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('❌ Supabase upload error:', uploadError);
+          return res.status(500).json({ message: 'Failed to upload image' });
+        }
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('promo')
+          .getPublicUrl(filePath);
+
+        // Delete old image from Supabase if exists
+        const [currentUser] = await pool.query(
+          'SELECT image FROM users_infos WHERE user_id = ?',
+          [userId]
+        );
+        
+        if (currentUser[0]?.image && currentUser[0].image.includes('supabase')) {
+          // Extract the file path from the URL
+          const oldImageUrl = currentUser[0].image;
+          const oldFilePath = oldImageUrl.split('/promo/')[1];
+          
+          if (oldFilePath) {
+            await supabase.storage
+              .from('promo')
+              .remove([oldFilePath]);
+          }
+        }
+
+        // Add image URL to update
+        updates.push('image = ?');
+        values.push(publicUrl);
+
+      } catch (error) {
+        console.error('❌ Image upload error:', error);
+        return res.status(500).json({ message: 'Failed to process image' });
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ message: 'No fields to update' });
+    }
+
+    // Add userId to values array
+    values.push(userId);
+
+    // Execute update query
+    await pool.query(
+      `UPDATE users_infos SET ${updates.join(', ')} WHERE user_id = ?`,
+      values
+    );
+
+    // Fetch updated user data
+    const [updatedUser] = await pool.query(
+      'SELECT user_id, firstname, middlename, lastname, sex, civil_status, date_of_birth, weight, height, address, email, role, image FROM users_infos WHERE user_id = ?',
+      [userId]
+    );
+
+    // Update session
+    req.session.user = {
+      ...req.session.user,
+      firstname: updatedUser[0].firstname,
+      lastname: updatedUser[0].lastname,
+      email: updatedUser[0].email,
+      image: updatedUser[0].image
+    };
+
+    // Save session and return response
+    req.session.save((err) => {
+      if (err) {
+        console.error('❌ Session save error:', err);
+        return res.status(500).json({ message: 'Failed to update session' });
+      }
+
+      res.json({
+        message: 'Profile updated successfully',
+        user: updatedUser[0]
+      });
+    });
+
+  } catch (error) {
+    console.error('❌ Update profile error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
 
 // 🧩 UNIFIED LOGIN - Checks both users_infos and coaches tables
 export const login = async (req, res) => {
