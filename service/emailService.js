@@ -2,11 +2,16 @@ import nodemailer from 'nodemailer';
 
 // Create reusable transporter with better configuration
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // Use service instead of manual host/port
+  host: 'smtp.gmail.com',
+  port: 465, // Use port 465 with SSL (more likely to work on Render)
+  secure: true, // Use SSL
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  connectionTimeout: 10000, // 10 seconds
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
   pool: true, // Enable connection pooling
   maxConnections: 5,
   maxMessages: 10,
@@ -14,14 +19,16 @@ const transporter = nodemailer.createTransport({
   rateLimit: 5,
 });
 
-// Verify connection on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ Email transporter verification failed:', error);
-  } else {
-    console.log('✅ Email server is ready to send messages');
-  }
-});
+// Verify connection on startup (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error('❌ Email transporter verification failed:', error);
+    } else {
+      console.log('✅ Email server is ready to send messages');
+    }
+  });
+}
 
 // Send OTP verification email
 export const sendOTPEmail = async (email, otp) => {
