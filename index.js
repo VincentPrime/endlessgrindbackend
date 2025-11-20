@@ -54,9 +54,9 @@ app.use(
       httpOnly: true,
       secure: false, // ✅ Must be false for localhost and isProduction for deployment
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: isProduction ? 'none' : 'lax',// ✅ Changed from 'none' to 'lax' for localhost
+      sameSite:  'none',// ✅ Changed from 'none' to 'lax' for localhost
       path: '/', // ✅ Explicitly set path
-      domain: isProduction ? undefined : undefined, 
+
     },
   })
 );
