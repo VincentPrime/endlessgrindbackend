@@ -2,6 +2,7 @@ import pool from '../../db/endlessgrinddb.js';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
 import { createClient } from '@supabase/supabase-js';
+import { sendOTPEmail } from "../../service/emailService.js"
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -332,5 +333,142 @@ export const deleteUsers = async (req, res) => {
     res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Error deleting User", error });
+  }
+};
+
+//new
+
+// 🔐 SEND OTP
+export const sendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    // Check if email already exists
+    const [existingUser] = await pool.query(
+      'SELECT email FROM users_infos WHERE email = ?',
+      [email]
+    );
+
+    if (existingUser.length > 0) {
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Set expiration time (2 minutes from now)
+    const expiresAt = new Date(Date.now() + 2 * 60 * 1000);
+
+    // Delete any existing OTP for this email
+    await pool.query('DELETE FROM otp_verifications WHERE email = ?', [email]);
+
+    // Store OTP in database
+    await pool.query(
+      'INSERT INTO otp_verifications (email, otp, expires_at) VALUES (?, ?, ?)',
+      [email, otp, expiresAt]
+    );
+
+    // Send OTP email
+    const emailResult = await sendOTPEmail(email, otp);
+
+    if (!emailResult.success) {
+      return res.status(500).json({ message: 'Failed to send OTP email' });
+    }
+
+    res.json({ 
+      message: 'OTP sent successfully',
+      expiresIn: 120 // seconds
+    });
+
+  } catch (error) {
+    console.error('❌ Send OTP error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// 🔐 VERIFY OTP
+export const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+
+    // Find OTP record
+    const [otpRecords] = await pool.query(
+      'SELECT * FROM otp_verifications WHERE email = ? AND otp = ? AND verified = FALSE ORDER BY created_at DESC LIMIT 1',
+      [email, otp]
+    );
+
+    if (otpRecords.length === 0) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    const otpRecord = otpRecords[0];
+
+    // Check if OTP is expired
+    if (new Date() > new Date(otpRecord.expires_at)) {
+      return res.status(400).json({ message: 'OTP has expired' });
+    }
+
+    // Mark OTP as verified
+    await pool.query(
+      'UPDATE otp_verifications SET verified = TRUE WHERE id = ?',
+      [otpRecord.id]
+    );
+
+    res.json({ message: 'OTP verified successfully' });
+
+  } catch (error) {
+    console.error('❌ Verify OTP error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// 🔐 SIGNUP WITH OTP VERIFICATION
+export const signupWithVerification = async (req, res) => {
+  try {
+    const { 
+      firstname, middlename, lastname, sex, civil_status, 
+      date_of_birth, weight, height, address, email, password, role 
+    } = req.body;
+
+    if (!firstname || !lastname || !sex || !civil_status || !date_of_birth || !email || !password) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Check if OTP was verified
+    const [otpRecords] = await pool.query(
+      'SELECT * FROM otp_verifications WHERE email = ? AND verified = TRUE ORDER BY created_at DESC LIMIT 1',
+      [email]
+    );
+
+    if (otpRecords.length === 0) {
+      return res.status(400).json({ message: 'Email not verified. Please verify your email first.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const [result] = await pool.query(
+      `INSERT INTO users_infos (firstname, middlename, lastname, sex, civil_status, date_of_birth, weight, height, address, email, password, role)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [firstname, middlename, lastname, sex, civil_status, date_of_birth, weight || null, height || null, address || '', email, hashedPassword, role || 'user']
+    );
+
+    // Clean up OTP records for this email
+    await pool.query('DELETE FROM otp_verifications WHERE email = ?', [email]);
+
+    res.status(201).json({ message: 'Account created successfully', userId: result.insertId });
+  } catch (error) {
+    console.error('❌ Signup error:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ message: 'Email already exists' });
+    }
+    res.status(500).json({ message: 'Server error' });
   }
 };

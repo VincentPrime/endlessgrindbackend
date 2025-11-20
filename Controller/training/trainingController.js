@@ -209,12 +209,14 @@ export const getUserSchedule = async (req, res) => {
     }
 
     // Get user's current approved application with sessions
+    // 🔥 FIXED: Added "AND a.is_archived = 0" to exclude archived applications
     const [schedule] = await pool.query(
       `SELECT 
         a.application_id,
         a.name as user_name,
         a.training_status,
         a.submitted_at,
+        a.coach_id,
         p.title as package_title,
         p.description as package_description,
         c.coach_name,
@@ -225,7 +227,10 @@ export const getUserSchedule = async (req, res) => {
       FROM applications a
       LEFT JOIN packages p ON a.package_id = p.package_id
       LEFT JOIN coaches c ON a.coach_id = c.coach_id
-      WHERE a.user_id = ? AND a.application_status = 'approved' AND a.training_status != 'completed'
+      WHERE a.user_id = ? 
+        AND a.application_status = 'approved' 
+        AND a.training_status != 'completed'
+        AND a.is_archived = 0
       ORDER BY a.submitted_at DESC
       LIMIT 1`,
       [user_id]
@@ -268,6 +273,7 @@ export const getUserSchedule = async (req, res) => {
     });
   }
 };
+
 
 // 📊 GET ALL SCHEDULES (Admin - for /admin/schedule page)
 export const getAllSchedules = async (req, res) => {
