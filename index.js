@@ -21,7 +21,7 @@ app.use(express.json());
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://endlessgrind.vercel.app/", // ⚠️ REPLACE with your actual Vercel URL
+  "https://endlessgrind.vercel.app", // ⚠️ REPLACE with your actual Vercel URL
   "https://your-custom-domain.com",   // ⚠️ Add if you have custom domain
 ];
 
@@ -54,9 +54,9 @@ app.use(
       httpOnly: true,
       secure: false, // ✅ Must be false for localhost and isProduction for deployment
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite:  'lax',// ✅ Changed from 'none' to 'lax' for localhost
+      sameSite: isProduction ? 'none' : 'lax',// ✅ Changed from 'none' to 'lax' for localhost
       path: '/', // ✅ Explicitly set path
-
+      domain: isProduction ? undefined : undefined, 
     },
   })
 );
