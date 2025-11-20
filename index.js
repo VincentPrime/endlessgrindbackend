@@ -13,6 +13,9 @@ import bookingRoutes from "./routes/bookingRoutes/bookingRoutes.js"
 const app = express();
 const PORT = 4000;
 
+// ✅ ADD THIS: Define isProduction
+const isProduction = process.env.NODE_ENV === 'production';
+
 // ✅ IMPORTANT: Set trust proxy BEFORE session middleware
 app.set('trust proxy', 1);
 
@@ -21,14 +24,13 @@ app.use(express.json());
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://endlessgrind.vercel.app", // ⚠️ REPLACE with your actual Vercel URL
-  "https://your-custom-domain.com",   // ⚠️ Add if you have custom domain
+  "https://endlessgrind.vercel.app",
 ];
 
 // ✅ FIXED CORS - Must be before session
 app.use(
   cors({
-       origin: function (origin, callback) {
+    origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps, Postman, or same-origin)
       if (!origin) return callback(null, true);
       
@@ -52,15 +54,13 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: isProduction, // ✅ Must be false for localhost
+      secure: isProduction, // true in production, false in development
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: isProduction ? 'none' : 'lax',// ✅ Changed from 'none' to 'lax' for localhost
-      path: '/', // ✅ Explicitly set path
-      domain: isProduction ? undefined : undefined, 
+      sameSite: isProduction ? 'none' : 'lax',
+      path: '/',
     },
   })
 );
-
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -70,6 +70,7 @@ app.use("/api", applicationRoutes)
 app.use("/api", trainingRoutes)
 app.use("/api", admindashboardRoutes)
 app.use("/api/bookings",bookingRoutes)
+
 // Protected routes
 app.get("/api/admin/users", requireAdmin, (req, res) => {
   res.json({ message: "List of all users", user: req.session.user });
