@@ -1,26 +1,16 @@
-import nodemailer from 'nodemailer';
+import { Resend } from "resend";
 
-// Create reusable transporter
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Send OTP verification email
+// ===============================
+// SEND OTP EMAIL
+// ===============================
 export const sendOTPEmail = async (email, otp) => {
   try {
-    const mailOptions = {
-      from: `"Endless Grind Gym" <${process.env.EMAIL_USER}>`,
+    const response = await resend.emails.send({
+      from: "Endless Grind Gym <onboarding@resend.dev>",
       to: email,
-      subject: '🔐 Your Verification Code',
+      subject: "🔐 Your Verification Code",
       html: `
         <!DOCTYPE html>
         <html>
@@ -79,24 +69,21 @@ export const sendOTPEmail = async (email, otp) => {
             }
           </style>
         </head>
+
         <body>
           <div class="header">
             <h1 style="margin: 10px 0;">🔐 Verify Your Email</h1>
             <p style="margin: 5px 0; opacity: 0.9;">Welcome to Endless Grind Gym!</p>
           </div>
-          
+
           <div class="content">
-            <p style="font-size: 16px; margin-bottom: 10px;">
-              Your verification code is:
-            </p>
-            
+            <p>Your verification code is:</p>
+
             <div class="otp-box">
               <div class="otp-code">${otp}</div>
-              <p style="color: #666; margin: 10px 0 0 0;">
-                Valid for 2 minutes
-              </p>
+              <p style="color: #666;">Valid for 2 minutes</p>
             </div>
-            
+
             <div class="warning">
               <strong>⚠️ Security Notice:</strong>
               <ul style="margin: 10px 0 0 0; padding-left: 20px;">
@@ -106,34 +93,34 @@ export const sendOTPEmail = async (email, otp) => {
               </ul>
             </div>
           </div>
-          
+
           <div class="footer">
             <p><strong>Endless Grind Gym</strong></p>
             <p>Start your fitness journey today 💪</p>
-            <p style="font-size: 12px; margin-top: 10px;">
-              This is an automated email. Please do not reply.
-            </p>
+            <p style="font-size: 12px;">This is an automated email. Please do not reply.</p>
           </div>
         </body>
         </html>
       `,
-    };
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ OTP Email sent:', info.messageId);
-    return { success: true, messageId: info.messageId };
+    console.log("✅ OTP Email Sent:", response);
+    return { success: true };
   } catch (error) {
-    console.error('❌ Error sending OTP email:', error);
-    return { success: false, error: error.message };
+    console.error("❌ Error sending OTP email:", error);
+    return { success: false, error };
   }
 };
-// Send coach notification email
+
+// ===============================
+// SEND COACH NOTIFICATION EMAIL
+// ===============================
 export const sendCoachNotification = async (coachEmail, clientData) => {
   try {
-    const mailOptions = {
-      from: `"Endless Grind Gym" <${process.env.EMAIL_USER}>`,
+    const response = await resend.emails.send({
+      from: "Endless Grind Gym <onboarding@resend.dev>",
       to: coachEmail,
-      subject: '🎉 Youve Got a New Client!',
+      subject: "🎉 You've Got a New Client!",
       html: `
         <!DOCTYPE html>
         <html>
@@ -199,79 +186,81 @@ export const sendCoachNotification = async (coachEmail, clientData) => {
             }
           </style>
         </head>
+
         <body>
           <div class="header">
             <div class="emoji">💪</div>
-            <h1 style="margin: 10px 0;">New Client Assignment!</h1>
-            <p style="margin: 5px 0; opacity: 0.9;">You have a new client ready to start their fitness journey</p>
+            <h1>New Client Assignment!</h1>
+            <p>You have a new client ready to start their fitness journey</p>
           </div>
-          
+
           <div class="content">
-            <h2 style="color: #667eea; margin-top: 0;">Client Details</h2>
-            
+            <h2 style="color: #667eea;">Client Details</h2>
+
             <div class="client-info">
               <div class="info-row">
                 <div class="info-label">Name:</div>
                 <div class="info-value"><strong>${clientData.name}</strong></div>
               </div>
-              
+
               ${clientData.nickname ? `
               <div class="info-row">
                 <div class="info-label">Nickname:</div>
                 <div class="info-value">${clientData.nickname}</div>
-              </div>
-              ` : ''}
-              
+              </div>` : ""}
+
               <div class="info-row">
                 <div class="info-label">Age / Sex:</div>
                 <div class="info-value">${clientData.age} years old / ${clientData.sex}</div>
               </div>
-              
+
               <div class="info-row">
                 <div class="info-label">Email:</div>
                 <div class="info-value"><a href="mailto:${clientData.email}">${clientData.email}</a></div>
               </div>
-              
+
               ${clientData.facebook ? `
               <div class="info-row">
                 <div class="info-label">Facebook:</div>
                 <div class="info-value">${clientData.facebook}</div>
-              </div>
-              ` : ''}
-              
+              </div>` : ""}
+
               ${clientData.weight ? `
               <div class="info-row">
                 <div class="info-label">Weight:</div>
                 <div class="info-value">${clientData.weight} kg</div>
-              </div>
-              ` : ''}
-              
+              </div>` : ""}
+
               ${clientData.height ? `
               <div class="info-row">
                 <div class="info-label">Height:</div>
                 <div class="info-value">${clientData.height} cm</div>
-              </div>
-              ` : ''}
-              
+              </div>` : ""}
+
               <div class="info-row">
                 <div class="info-label">Package:</div>
                 <div class="info-value"><strong>${clientData.package_title}</strong> (₱${clientData.package_price})</div>
               </div>
-              
+
               <div class="info-row" style="border-bottom: none;">
                 <div class="info-label">Start Date:</div>
-                <div class="info-value">${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                <div class="info-value">
+                  ${new Date().toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </div>
               </div>
             </div>
-            
+
             <div class="highlight">
               <strong>🎯 Fitness Goal:</strong>
-              <p style="margin: 10px 0 0 0;">${clientData.goal}</p>
+              <p>${clientData.goal}</p>
             </div>
-            
-            <p style="margin-top: 30px;">
-              <strong>Next Steps:</strong>
-            </p>
+
+            <p><strong>Next Steps:</strong></p>
             <ul>
               <li>Review the client's fitness goals and health information</li>
               <li>Reach out to schedule an initial assessment</li>
@@ -279,36 +268,27 @@ export const sendCoachNotification = async (coachEmail, clientData) => {
               <li>Welcome your new client and start their transformation journey!</li>
             </ul>
           </div>
-          
+
           <div class="footer">
             <p><strong>Endless Grind Gym</strong></p>
             <p>Empowering fitness journeys, one client at a time 💪</p>
-            <p style="font-size: 12px; margin-top: 10px;">
-              This is an automated notification. Please do not reply to this email.
-            </p>
+            <p style="font-size: 12px;">This is an automated notification. Please do not reply.</p>
           </div>
         </body>
         </html>
       `,
-    };
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully:', info.messageId);
-    return { success: true, messageId: info.messageId };
+    console.log("✅ Coach Notification Sent:", response);
+    return { success: true };
   } catch (error) {
-    console.error('❌ Error sending email:', error);
-    return { success: false, error: error.message };
+    console.error("❌ Error sending coach email:", error);
+    return { success: false, error };
   }
 };
 
-// Test email configuration
+// REMOVE nodemailer testEmailConnection — Resend doesn't use SMTP
 export const testEmailConnection = async () => {
-  try {
-    await transporter.verify();
-    console.log('✅ Email server is ready to send messages');
-    return true;
-  } catch (error) {
-    console.error('❌ Email server connection failed:', error);
-    return false;
-  }
+  console.log("ℹ️ Resend uses HTTPS, no SMTP connection needed. Always ready.");
+  return true;
 };
