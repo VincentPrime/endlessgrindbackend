@@ -1,17 +1,26 @@
 import nodemailer from 'nodemailer';
 
-// Create reusable transporter
+// Create reusable transporter with better configuration
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
+  service: 'gmail', // Use service instead of manual host/port
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  tls: {
-    rejectUnauthorized: false,
-  },
+  pool: true, // Enable connection pooling
+  maxConnections: 5,
+  maxMessages: 10,
+  rateDelta: 1000,
+  rateLimit: 5,
+});
+
+// Verify connection on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('❌ Email transporter verification failed:', error);
+  } else {
+    console.log('✅ Email server is ready to send messages');
+  }
 });
 
 // Send OTP verification email
@@ -127,6 +136,7 @@ export const sendOTPEmail = async (email, otp) => {
     return { success: false, error: error.message };
   }
 };
+
 // Send coach notification email
 export const sendCoachNotification = async (coachEmail, clientData) => {
   try {
@@ -293,10 +303,10 @@ export const sendCoachNotification = async (coachEmail, clientData) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully:', info.messageId);
+    console.log('✅ Coach notification email sent:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('❌ Error sending email:', error);
+    console.error('❌ Error sending coach notification email:', error);
     return { success: false, error: error.message };
   }
 };
