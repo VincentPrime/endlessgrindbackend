@@ -52,11 +52,11 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false, // ✅ Must be false for localhost and isProduction for deployment
+      secure: isProduction, // ✅ Must be false for localhost
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite:  'none',// ✅ Changed from 'none' to 'lax' for localhost
+      sameSite: isProduction ? 'none' : 'lax',// ✅ Changed from 'none' to 'lax' for localhost
       path: '/', // ✅ Explicitly set path
-
+      domain: isProduction ? undefined : undefined, 
     },
   })
 );
