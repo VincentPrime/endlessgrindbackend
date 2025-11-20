@@ -21,7 +21,7 @@ app.use(express.json());
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://your-app-name.vercel.app", // ⚠️ REPLACE with your actual Vercel URL
+  "https://endlessgrind.vercel.app/", // ⚠️ REPLACE with your actual Vercel URL
   "https://your-custom-domain.com",   // ⚠️ Add if you have custom domain
 ];
 
