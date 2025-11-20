@@ -1,35 +1,13 @@
 import nodemailer from 'nodemailer';
 
-// Create reusable transporter with better configuration
+// Create reusable transporter
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465, // Use port 465 with SSL (more likely to work on Render)
-  secure: true, // Use SSL
+  service: 'gmail', // or 'outlook', 'yahoo', etc.
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.EMAIL_USER, // Your email
+    pass: process.env.EMAIL_PASS, // Your email app password
   },
-  connectionTimeout: 10000, // 10 seconds
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-  pool: true, // Enable connection pooling
-  maxConnections: 5,
-  maxMessages: 10,
-  rateDelta: 1000,
-  rateLimit: 5,
 });
-
-// Verify connection on startup (only in development)
-if (process.env.NODE_ENV !== 'production') {
-  transporter.verify((error, success) => {
-    if (error) {
-      console.error('❌ Email transporter verification failed:', error);
-    } else {
-      console.log('✅ Email server is ready to send messages');
-    }
-  });
-}
-
 // Send OTP verification email
 export const sendOTPEmail = async (email, otp) => {
   try {
@@ -143,7 +121,6 @@ export const sendOTPEmail = async (email, otp) => {
     return { success: false, error: error.message };
   }
 };
-
 // Send coach notification email
 export const sendCoachNotification = async (coachEmail, clientData) => {
   try {
@@ -310,10 +287,10 @@ export const sendCoachNotification = async (coachEmail, clientData) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Coach notification email sent:', info.messageId);
+    console.log('✅ Email sent successfully:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('❌ Error sending coach notification email:', error);
+    console.error('❌ Error sending email:', error);
     return { success: false, error: error.message };
   }
 };
