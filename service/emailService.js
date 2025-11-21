@@ -199,3 +199,72 @@ export const testEmailConnection = async () => {
     return false;
   }
 };
+
+// Add this function to your existing emailService.js
+
+// ------------------ SEND PASSWORD RESET OTP EMAIL ------------------
+export const sendPasswordResetOTPEmail = async (email, otp) => {
+  try {
+    const subject = 'Password Reset Request - Endless Grind Gym';
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 40px; border-radius: 0 0 10px 10px; text-align: center; }
+          .otp-box { background: white; padding: 30px; border-radius: 10px; margin: 30px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .otp-code { font-size: 48px; font-weight: bold; letter-spacing: 8px; color: #e74c3c; margin: 20px 0; }
+          .warning { background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0; border-radius: 4px; text-align: left; }
+          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; color: #666; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1 style="margin: 10px 0;">🔑 Password Reset Request</h1>
+          <p style="margin: 5px 0; opacity: 0.9;">Endless Grind Gym</p>
+        </div>
+        
+        <div class="content">
+          <p style="font-size: 16px; margin-bottom: 10px;">You requested to reset your password. Use this code:</p>
+          <div class="otp-box">
+            <div class="otp-code">${otp}</div>
+            <p style="color: #666; margin: 10px 0 0 0;">Valid for 5 minutes</p>
+          </div>
+          <div class="warning">
+            <strong>⚠️ Security Notice:</strong>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+              <li>Never share this code with anyone</li>
+              <li>This code expires in 5 minutes</li>
+              <li>If you didn't request this, please ignore this email and your password will remain unchanged</li>
+              <li>Consider changing your password if you receive this unexpectedly</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="footer">
+          <p><strong>Endless Grind Gym</strong></p>
+          <p>Your fitness journey, secured 💪</p>
+          <p style="font-size: 12px; margin-top: 10px;">This is an automated email. Please do not reply.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const encodedMessage = createEmailMessage(email, subject, htmlContent);
+
+    const result = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedMessage
+      }
+    });
+
+    console.log('✅ Password Reset OTP Email sent:', result.data.id);
+    return { success: true, messageId: result.data.id };
+  } catch (error) {
+    console.error('❌ Error sending password reset OTP email:', error);
+    return { success: false, error: error.message };
+  }
+};
