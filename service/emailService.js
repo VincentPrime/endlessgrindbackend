@@ -43,7 +43,7 @@ const createEmailMessage = (to, subject, htmlContent) => {
 // ------------------ SEND OTP EMAIL ------------------
 export const sendOTPEmail = async (email, otp) => {
   try {
-    const subject = '🔐 Your Verification Code';
+    const subject = 'Your Verification Code';
     const htmlContent = `
       <!DOCTYPE html>
       <html>

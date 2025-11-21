@@ -177,7 +177,8 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-// 🧩 UNIFIED LOGIN - Checks both users_infos and coaches tables
+
+// 🧩 UNIFIED LOGIN - With account lockout after 3 failed attempts
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -185,17 +186,76 @@ export const login = async (req, res) => {
     if (!email || !password)
       return res.status(400).json({ message: "Email and password required" });
 
+    // Helper function to check and handle lockout
+    const checkLockout = (record) => {
+      if (record.locked_until && new Date(record.locked_until) > new Date()) {
+        const remainingTime = Math.ceil((new Date(record.locked_until) - new Date()) / 1000);
+        return {
+          isLocked: true,
+          remainingSeconds: remainingTime
+        };
+      }
+      return { isLocked: false };
+    };
+
     // ✅ First, check users_infos table (for users and admin)
     const [userRows] = await pool.query(`SELECT * FROM users_infos WHERE email = ?`, [email]);
     
     if (userRows.length > 0) {
       const user = userRows[0];
+      
+      // Check if account is locked
+      const lockStatus = checkLockout(user);
+      if (lockStatus.isLocked) {
+        return res.status(423).json({ 
+          message: `This account has been disabled for 30 seconds. Please try again after the given time.`,
+          locked: true,
+          remainingSeconds: lockStatus.remainingSeconds
+        });
+      }
+      
+      // If lock has expired, reset the failed attempts
+      if (user.locked_until && new Date(user.locked_until) <= new Date()) {
+        await pool.query(
+          'UPDATE users_infos SET failed_login_attempts = 0, locked_until = NULL WHERE user_id = ?',
+          [user.user_id]
+        );
+        user.failed_login_attempts = 0;
+      }
+
       const isMatch = await bcrypt.compare(password, user.password);
       
-      if (!isMatch)
-        return res.status(400).json({ message: "Invalid credentials" });
+      if (!isMatch) {
+        const newFailedAttempts = (user.failed_login_attempts || 0) + 1;
+        
+        if (newFailedAttempts >= 3) {
+          const lockUntil = new Date(Date.now() + 30 * 1000); // 30 seconds
+          await pool.query(
+            'UPDATE users_infos SET failed_login_attempts = ?, locked_until = ? WHERE user_id = ?',
+            [newFailedAttempts, lockUntil, user.user_id]
+          );
+          return res.status(423).json({ 
+            message: `This account has been disabled for 30 seconds. Please try again after the given time.`,
+            locked: true,
+            remainingSeconds: 30
+          });
+        } else {
+          await pool.query(
+            'UPDATE users_infos SET failed_login_attempts = ? WHERE user_id = ?',
+            [newFailedAttempts, user.user_id]
+          );
+          return res.status(400).json({ 
+            message: `Invalid credentials. ${3 - newFailedAttempts} attempt(s) remaining.`
+          });
+        }
+      }
 
-      // Store user in session
+      // ✅ Successful login - reset failed attempts
+      await pool.query(
+        'UPDATE users_infos SET failed_login_attempts = 0, locked_until = NULL WHERE user_id = ?',
+        [user.user_id]
+      );
+
       req.session.user = {
         user_id: user.user_id,
         firstname: user.firstname,
@@ -204,35 +264,74 @@ export const login = async (req, res) => {
         role: user.role,
         image: user.image
       };
-
-      // Save session explicitly
-      return req.session.save((err) => {  // ✅ ADD RETURN HERE
+      
+      return req.session.save((err) => {
         if (err) {
           console.error('❌ Session save error:', err);
           return res.status(500).json({ message: "Failed to create session" });
         }
-        
-        console.log('✅ Session saved successfully:', req.session.user);
-        console.log('✅ Session ID:', req.sessionID);
-        
-        return res.json({
-          message: "Logged in",
-          user: req.session.user,
-        });
+        return res.json({ message: "Logged in", user: req.session.user });
       });
     }
 
-    // ✅ If not found in users_infos, check coaches table
+    // ✅ Check coaches table with same lockout logic
     const [coachRows] = await pool.query(`SELECT * FROM coaches WHERE email = ?`, [email]);
     
     if (coachRows.length > 0) {
       const coach = coachRows[0];
+      
+      // Check if account is locked
+      const lockStatus = checkLockout(coach);
+      if (lockStatus.isLocked) {
+        return res.status(423).json({ 
+          message: `This account has been disabled for 30 seconds. Please try again after the given time.`,
+          locked: true,
+          remainingSeconds: lockStatus.remainingSeconds
+        });
+      }
+      
+      // If lock has expired, reset the failed attempts
+      if (coach.locked_until && new Date(coach.locked_until) <= new Date()) {
+        await pool.query(
+          'UPDATE coaches SET failed_login_attempts = 0, locked_until = NULL WHERE coach_id = ?',
+          [coach.coach_id]
+        );
+        coach.failed_login_attempts = 0;
+      }
+
       const isMatch = await bcrypt.compare(password, coach.password);
       
-      if (!isMatch)
-        return res.status(400).json({ message: "Invalid credentials" });
+      if (!isMatch) {
+        const newFailedAttempts = (coach.failed_login_attempts || 0) + 1;
+        
+        if (newFailedAttempts >= 3) {
+          const lockUntil = new Date(Date.now() + 30 * 1000);
+          await pool.query(
+            'UPDATE coaches SET failed_login_attempts = ?, locked_until = ? WHERE coach_id = ?',
+            [newFailedAttempts, lockUntil, coach.coach_id]
+          );
+          return res.status(423).json({ 
+            message: `This account has been disabled for 30 seconds. Please try again after the given time.`,
+            locked: true,
+            remainingSeconds: 30
+          });
+        } else {
+          await pool.query(
+            'UPDATE coaches SET failed_login_attempts = ? WHERE coach_id = ?',
+            [newFailedAttempts, coach.coach_id]
+          );
+          return res.status(400).json({ 
+            message: `Invalid credentials. ${3 - newFailedAttempts} attempt(s) remaining.`
+          });
+        }
+      }
 
-      // Store coach in session
+      // ✅ Successful login - reset failed attempts
+      await pool.query(
+        'UPDATE coaches SET failed_login_attempts = 0, locked_until = NULL WHERE coach_id = ?',
+        [coach.coach_id]
+      );
+
       req.session.user = {
         user_id: coach.coach_id,
         coach_name: coach.coach_name,
@@ -241,24 +340,16 @@ export const login = async (req, res) => {
         profile_image: coach.profile_image
       };
 
-      // Save session explicitly - ✅ THIS WAS THE BUG!
-      return req.session.save((err) => {  // ✅ MUST HAVE RETURN HERE
+      return req.session.save((err) => {
         if (err) {
           console.error('❌ Session save error:', err);
           return res.status(500).json({ message: "Failed to create session" });
         }
-        
-        console.log('✅ Coach session saved successfully:', req.session.user);
-        console.log('✅ Session ID:', req.sessionID);
-        
-        return res.json({
-          message: "Logged in",
-          user: req.session.user,
-        });
+        return res.json({ message: "Logged in", user: req.session.user });
       });
     }
 
-    // ✅ If not found in either table
+    // ✅ Email not found in either table
     return res.status(400).json({ message: "Invalid credentials" });
 
   } catch (error) {
