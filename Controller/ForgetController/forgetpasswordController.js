@@ -1,6 +1,8 @@
+// forgotPasswordController.js
 import pool from '../../db/endlessgrinddb.js';
 import bcrypt from 'bcryptjs';
-import { sendPasswordResetOTP } from '../../service/emailService.js';
+import crypto from 'crypto';
+import { sendPasswordResetOTPEmail } from '../../service/emailService.js';
 
 // 🔐 CHECK EMAIL EXISTS (Step 1)
 export const checkEmailExists = async (req, res) => {
@@ -52,7 +54,7 @@ export const checkEmailExists = async (req, res) => {
 };
 
 // 🔐 SEND PASSWORD RESET OTP (Step 2)
-export const sendPasswordResetOTP = async (req, res) => {
+export const sendResetOTP = async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -93,7 +95,6 @@ export const sendPasswordResetOTP = async (req, res) => {
     );
 
     // Send OTP email using the email service
-    const { sendPasswordResetOTPEmail } = await import('../../service/emailService.js');
     const emailResult = await sendPasswordResetOTPEmail(email, otp);
 
     if (!emailResult.success) {
@@ -112,7 +113,7 @@ export const sendPasswordResetOTP = async (req, res) => {
 };
 
 // 🔐 VERIFY PASSWORD RESET OTP (Step 3)
-export const verifyPasswordResetOTP = async (req, res) => {
+export const verifyResetOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
@@ -138,7 +139,7 @@ export const verifyPasswordResetOTP = async (req, res) => {
     }
 
     // Generate a reset token for the password reset step
-    const resetToken = require('crypto').randomBytes(32).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString('hex');
     const tokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     // Update OTP record with reset token

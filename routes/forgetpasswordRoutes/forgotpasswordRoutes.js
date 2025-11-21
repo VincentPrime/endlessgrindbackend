@@ -2,8 +2,8 @@
 import express from 'express';
 import {
   checkEmailExists,
-  sendPasswordResetOTP,
-  verifyPasswordResetOTP,
+  sendResetOTP,
+  verifyResetOTP,
   resetPassword
 } from '../../Controller/ForgetController/forgetpasswordController.js';
 
@@ -13,16 +13,12 @@ const router = express.Router();
 router.post('/check-email', checkEmailExists);
 
 // Step 2: Send OTP to email
-router.post('/send-otp', sendPasswordResetOTP);
+router.post('/send-otp', sendResetOTP);
 
 // Step 3: Verify OTP
-router.post('/verify-otp', verifyPasswordResetOTP);
+router.post('/verify-otp', verifyResetOTP);
 
 // Step 4: Reset password
 router.post('/reset-password', resetPassword);
 
 export default router;
-
-// In your main server.js or app.js, add:
-// import forgotPasswordRoutes from './routes/forgotPasswordRoutes.js';
-// app.use('/api/auth/forgot-password', forgotPasswordRoutes);
