@@ -77,6 +77,7 @@ export const logTrainingSession = async (req, res) => {
 };
 
 // ✅ COMPLETE TRAINING PROGRAM (Coach marks entire program as completed)
+// ✅ COMPLETE TRAINING PROGRAM (Coach marks entire program as completed)
 export const completeTrainingProgram = async (req, res) => {
   try {
     const { application_id } = req.params;
@@ -112,15 +113,23 @@ export const completeTrainingProgram = async (req, res) => {
       });
     }
 
-    // Update training_status to completed
+    // 🔥 NEW: Archive the application instead of just updating training_status
     await pool.query(
-      "UPDATE applications SET training_status = 'completed' WHERE application_id = ?",
-      [application_id]
+      `UPDATE applications 
+       SET training_status = 'completed',
+           is_archived = 1,
+           archived_at = NOW(),
+           archived_by = ?,
+           archive_reason = 'Training program completed by coach'
+       WHERE application_id = ?`,
+      [coach_id, application_id]
     );
+
+    console.log(`✅ Training program ${application_id} completed and archived by coach ${coach_id}`);
 
     res.status(200).json({
       success: true,
-      message: "Training program marked as completed"
+      message: "Training program marked as completed. User can now apply for a new membership."
     });
 
   } catch (error) {

@@ -540,19 +540,21 @@ export const declineApplication = async (req, res) => {
       }
     }
 
-    // Update application status
+    // 🔥 NEW: Archive the application instead of just declining
     await pool.query(
       `UPDATE applications 
-       SET application_status = 'declined', 
-           reviewed_at = NOW(), 
-           reviewed_by = ? 
+       SET application_status = 'declined',
+           is_archived = 1,
+           archived_at = NOW(),
+           archived_by = ?,
+           archive_reason = 'Application declined by admin'
        WHERE application_id = ?`,
       [admin_id, application_id]
     );
 
-    console.log(`❌ Application ${application_id} declined by admin ${admin_id}`);
+    console.log(`❌ Application ${application_id} declined and archived by admin ${admin_id}`);
 
-    // 📧 SEND EMAIL NOTIFICATION TO USER (NEW!)
+    // 📧 SEND EMAIL NOTIFICATION TO USER
     if (application.email) {
       const userEmailData = {
         name: application.name,
@@ -573,7 +575,7 @@ export const declineApplication = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Application declined successfully and user notified",
+      message: "Application declined, archived, and user can now reapply",
       refund_initiated: refundInitiated
     });
   } catch (error) {
