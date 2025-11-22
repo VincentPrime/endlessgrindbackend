@@ -1,6 +1,10 @@
 import pool from "../../db/endlessgrinddb.js";
 import axios from "axios";
-import { sendCoachNotification } from '../../service/emailService.js';
+import { 
+  sendCoachNotification, 
+  sendApplicationApprovedEmail, 
+  sendApplicationDeclinedEmail  
+} from '../../service/emailService.js';
 
 const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY;
 const PAYMONGO_API_URL = "https://api.paymongo.com/v1";
@@ -369,7 +373,8 @@ export const approveApplication = async (req, res) => {
         p.title as package_title,
         p.price as package_price,
         c.email as coach_email,
-        c.coach_name
+        c.coach_name,
+        c.specialty as coach_specialty
       FROM applications a
       LEFT JOIN packages p ON a.package_id = p.package_id
       LEFT JOIN coaches c ON a.coach_id = c.coach_id
@@ -409,7 +414,7 @@ export const approveApplication = async (req, res) => {
 
     // 📧 SEND EMAIL NOTIFICATION TO COACH
     if (application.coach_email) {
-      const emailData = {
+      const coachEmailData = {
         name: application.name,
         nickname: application.nickname,
         age: application.age,
@@ -423,19 +428,37 @@ export const approveApplication = async (req, res) => {
         package_price: application.package_price,
       };
 
-      const emailResult = await sendCoachNotification(application.coach_email, emailData);
+      const coachEmailResult = await sendCoachNotification(application.coach_email, coachEmailData);
       
-      if (emailResult.success) {
+      if (coachEmailResult.success) {
         console.log(`📧 Email sent to coach: ${application.coach_email}`);
       } else {
-        console.error(`❌ Failed to send email to coach: ${emailResult.error}`);
-        // Continue even if email fails - application is still approved
+        console.error(`❌ Failed to send email to coach: ${coachEmailResult.error}`);
+      }
+    }
+
+    // 📧 SEND EMAIL NOTIFICATION TO USER (NEW!)
+    if (application.email) {
+      const userEmailData = {
+        name: application.name,
+        package_title: application.package_title,
+        package_price: application.package_price,
+        coach_name: application.coach_name,
+        coach_specialty: application.coach_specialty,
+      };
+
+      const userEmailResult = await sendApplicationApprovedEmail(application.email, userEmailData);
+      
+      if (userEmailResult.success) {
+        console.log(`📧 Approval email sent to user: ${application.email}`);
+      } else {
+        console.error(`❌ Failed to send approval email to user: ${userEmailResult.error}`);
       }
     }
 
     res.status(200).json({
       success: true,
-      message: "Application approved successfully and coach notified"
+      message: "Application approved successfully and notifications sent"
     });
   } catch (error) {
     console.error("Error approving application:", error);
@@ -459,9 +482,15 @@ export const declineApplication = async (req, res) => {
       });
     }
 
-    // Get application details
+    // Get application details with package info
     const [applications] = await pool.query(
-      "SELECT * FROM applications WHERE application_id = ?",
+      `SELECT 
+        a.*,
+        p.title as package_title,
+        p.price as package_price
+      FROM applications a
+      LEFT JOIN packages p ON a.package_id = p.package_id
+      WHERE a.application_id = ?`,
       [application_id]
     );
 
@@ -473,47 +502,41 @@ export const declineApplication = async (req, res) => {
     }
 
     const application = applications[0];
+    let refundInitiated = false;
 
     // If payment was completed, initiate refund via PayMongo
     if (application.payment_status === "completed" && application.payment_id) {
       try {
-        // Get package price for refund
-        const [packageData] = await pool.query(
-          "SELECT price FROM packages WHERE package_id = ?",
-          [application.package_id]
-        );
-
-        if (packageData.length > 0) {
-          // Create refund via PayMongo API
-          await axios.post(
-            `${PAYMONGO_API_URL}/refunds`,
-            {
-              data: {
-                attributes: {
-                  payment_id: application.payment_id,
-                  amount: Math.round(packageData[0].price * 100), // amount in centavos
-                  reason: "requested_by_customer",
-                  notes: `Application declined by admin`
-                }
-              }
-            },
-            {
-              headers: {
-                Authorization: `Basic ${Buffer.from(PAYMONGO_SECRET_KEY).toString("base64")}`,
-                "Content-Type": "application/json"
+        // Create refund via PayMongo API
+        await axios.post(
+          `${PAYMONGO_API_URL}/refunds`,
+          {
+            data: {
+              attributes: {
+                payment_id: application.payment_id,
+                amount: Math.round(application.package_price * 100),
+                reason: "requested_by_customer",
+                notes: `Application declined by admin`
               }
             }
-          );
+          },
+          {
+            headers: {
+              Authorization: `Basic ${Buffer.from(PAYMONGO_SECRET_KEY).toString("base64")}`,
+              "Content-Type": "application/json"
+            }
+          }
+        );
 
-          // Update payment status to refunded
-          await pool.query(
-            "UPDATE applications SET payment_status = 'refunded' WHERE application_id = ?",
-            [application_id]
-          );
-        }
+        // Update payment status to refunded
+        await pool.query(
+          "UPDATE applications SET payment_status = 'refunded' WHERE application_id = ?",
+          [application_id]
+        );
+        
+        refundInitiated = true;
       } catch (refundError) {
         console.error("Refund error:", refundError.response?.data || refundError.message);
-        // Continue with declining even if refund fails - admin can process manually
       }
     }
 
@@ -527,10 +550,31 @@ export const declineApplication = async (req, res) => {
       [admin_id, application_id]
     );
 
+    console.log(`❌ Application ${application_id} declined by admin ${admin_id}`);
+
+    // 📧 SEND EMAIL NOTIFICATION TO USER (NEW!)
+    if (application.email) {
+      const userEmailData = {
+        name: application.name,
+        package_title: application.package_title,
+        package_price: application.package_price,
+        submitted_at: application.submitted_at,
+        refund_initiated: refundInitiated,
+      };
+
+      const userEmailResult = await sendApplicationDeclinedEmail(application.email, userEmailData);
+      
+      if (userEmailResult.success) {
+        console.log(`📧 Decline email sent to user: ${application.email}`);
+      } else {
+        console.error(`❌ Failed to send decline email to user: ${userEmailResult.error}`);
+      }
+    }
+
     res.status(200).json({
       success: true,
-      message: "Application declined successfully",
-      refund_initiated: application.payment_status === "completed"
+      message: "Application declined successfully and user notified",
+      refund_initiated: refundInitiated
     });
   } catch (error) {
     console.error("Error declining application:", error);

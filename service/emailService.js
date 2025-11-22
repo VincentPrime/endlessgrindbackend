@@ -268,3 +268,169 @@ export const sendPasswordResetOTPEmail = async (email, otp) => {
     return { success: false, error: error.message };
   }
 };
+
+// ------------------ SEND APPLICATION APPROVED EMAIL TO USER ------------------
+export const sendApplicationApprovedEmail = async (userEmail, applicationData) => {
+  try {
+    const subject = '🎉 Your Gym Membership Application Has Been Approved!';
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .info-row { display: flex; padding: 12px 0; border-bottom: 1px solid #eee; }
+          .info-label { font-weight: bold; width: 140px; color: #28a745; }
+          .info-value { flex: 1; }
+          .highlight { background: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0; border-radius: 4px; }
+          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; color: #666; font-size: 14px; }
+          .emoji { font-size: 48px; }
+          .cta-button { display: inline-block; background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="emoji">🎉</div>
+          <h1 style="margin: 10px 0;">Congratulations, ${applicationData.name}!</h1>
+          <p style="margin: 5px 0; opacity: 0.9;">Your membership application has been approved!</p>
+        </div>
+        
+        <div class="content">
+          <div class="highlight">
+            <strong>✅ Great News!</strong>
+            <p style="margin: 10px 0 0 0;">Welcome to the Endless Grind Gym family! Your application has been reviewed and approved. You're now officially a member!</p>
+          </div>
+
+          <h2 style="color: #28a745; margin-top: 30px;">Your Membership Details</h2>
+          
+          <div class="info-box">
+            <div class="info-row"><div class="info-label">Package:</div><div class="info-value"><strong>${applicationData.package_title}</strong></div></div>
+            <div class="info-row"><div class="info-label">Price:</div><div class="info-value">₱${applicationData.package_price}</div></div>
+            <div class="info-row"><div class="info-label">Your Coach:</div><div class="info-value"><strong>${applicationData.coach_name}</strong></div></div>
+            ${applicationData.coach_specialty ? `<div class="info-row"><div class="info-label">Coach Specialty:</div><div class="info-value">${applicationData.coach_specialty}</div></div>` : ''}
+            <div class="info-row" style="border-bottom: none;"><div class="info-label">Approved On:</div><div class="info-value">${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div></div>
+          </div>
+
+          <h3 style="color: #333;">What's Next?</h3>
+          <ul style="padding-left: 20px;">
+            <li>Your coach <strong>${applicationData.coach_name}</strong> has been notified and will reach out to you soon</li>
+            <li>Check your dashboard for your training schedule</li>
+            <li>Prepare your gym essentials (workout clothes, towel, water bottle)</li>
+            <li>Get ready to start your fitness journey!</li>
+          </ul>
+
+          <div style="text-align: center; margin-top: 30px;">
+            <p style="color: #666;">Questions? Feel free to contact us or visit the gym.</p>
+          </div>
+        </div>
+        
+        <div class="footer">
+          <p><strong>Endless Grind Gym</strong></p>
+          <p>Let's achieve your fitness goals together! 💪</p>
+          <p style="font-size: 12px; margin-top: 10px;">This is an automated email. Please do not reply.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const encodedMessage = createEmailMessage(userEmail, subject, htmlContent);
+
+    const result = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedMessage
+      }
+    });
+
+    console.log('✅ Application Approved Email sent to user:', result.data.id);
+    return { success: true, messageId: result.data.id };
+  } catch (error) {
+    console.error('❌ Error sending application approved email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ------------------ SEND APPLICATION DECLINED EMAIL TO USER ------------------
+export const sendApplicationDeclinedEmail = async (userEmail, applicationData) => {
+  try {
+    const subject = 'Update on Your Gym Membership Application';
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .notice { background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0; border-radius: 4px; }
+          .refund-notice { background: #d1ecf1; padding: 15px; border-left: 4px solid #17a2b8; margin: 20px 0; border-radius: 4px; }
+          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; color: #666; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1 style="margin: 10px 0;">Application Update</h1>
+          <p style="margin: 5px 0; opacity: 0.9;">Endless Grind Gym</p>
+        </div>
+        
+        <div class="content">
+          <p>Dear <strong>${applicationData.name}</strong>,</p>
+          
+          <p>Thank you for your interest in joining Endless Grind Gym. After careful review, we regret to inform you that your membership application has not been approved at this time.</p>
+
+          <div class="info-box">
+            <p><strong>Application Details:</strong></p>
+            <p>Package Applied: ${applicationData.package_title}</p>
+            <p>Submitted: ${new Date(applicationData.submitted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          </div>
+
+          ${applicationData.refund_initiated ? `
+          <div class="refund-notice">
+            <strong>💰 Refund Information:</strong>
+            <p style="margin: 10px 0 0 0;">Your payment of <strong>₱${applicationData.package_price}</strong> has been processed for a refund. Please allow 5-7 business days for the refund to reflect in your account, depending on your payment method.</p>
+          </div>
+          ` : ''}
+
+          <div class="notice">
+            <strong>📝 What You Can Do:</strong>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+              <li>You may submit a new application with updated information</li>
+              <li>Contact us if you have any questions about this decision</li>
+              <li>Visit the gym in person to speak with our staff</li>
+            </ul>
+          </div>
+
+          <p>We appreciate your understanding and hope to welcome you to our gym in the future.</p>
+          
+          <p>Best regards,<br><strong>Endless Grind Gym Team</strong></p>
+        </div>
+        
+        <div class="footer">
+          <p><strong>Endless Grind Gym</strong></p>
+          <p>Your fitness journey awaits 💪</p>
+          <p style="font-size: 12px; margin-top: 10px;">This is an automated email. Please do not reply.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const encodedMessage = createEmailMessage(userEmail, subject, htmlContent);
+
+    const result = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedMessage
+      }
+    });
+
+    console.log('✅ Application Declined Email sent to user:', result.data.id);
+    return { success: true, messageId: result.data.id };
+  } catch (error) {
+    console.error('❌ Error sending application declined email:', error);
+    return { success: false, error: error.message };
+  }
+};
