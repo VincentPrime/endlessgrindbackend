@@ -109,7 +109,7 @@ export const sendOTPEmail = async (email, otp) => {
 // ------------------ SEND COACH NOTIFICATION EMAIL ------------------
 export const sendCoachNotification = async (coachEmail, clientData) => {
   try {
-    const subject = '🎉 Youve Got a New Client!';
+    const subject = 'Youve Got a New Client!';
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -272,7 +272,7 @@ export const sendPasswordResetOTPEmail = async (email, otp) => {
 // ------------------ SEND APPLICATION APPROVED EMAIL TO USER ------------------
 export const sendApplicationApprovedEmail = async (userEmail, applicationData) => {
   try {
-    const subject = '🎉 Your Gym Membership Application Has Been Approved!';
+    const subject = 'Your Gym Membership Application Has Been Approved!';
     const htmlContent = `
       <!DOCTYPE html>
       <html>
