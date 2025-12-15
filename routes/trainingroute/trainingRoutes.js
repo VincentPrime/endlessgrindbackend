@@ -5,7 +5,9 @@ import {
   getCoachClients,
   getUserSchedule,
   getAllSchedules,
-  getSessionHistory
+  getSessionHistory,
+   getCoachSessions,   
+  updateTrainingSession 
 } from "../../Controller/training/trainingController.js";
 import { requireAuth, requireCoach, requireAdmin } from "../../middlerware/authMiddleware.js";
 
@@ -28,5 +30,9 @@ router.get("/admin/all-schedules", requireAdmin, getAllSchedules);
 
 // 📊 Get session history for an application
 router.get("/training/sessions/:application_id", requireAuth, getSessionHistory);
+
+router.get("/coach/my-sessions", requireCoach, getCoachSessions);
+
+router.put("/training/update-session/:session_id", requireCoach, updateTrainingSession);
 
 export default router;

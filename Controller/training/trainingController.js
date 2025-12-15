@@ -77,7 +77,6 @@ export const logTrainingSession = async (req, res) => {
 };
 
 // ✅ COMPLETE TRAINING PROGRAM (Coach marks entire program as completed)
-// ✅ COMPLETE TRAINING PROGRAM (Coach marks entire program as completed)
 export const completeTrainingProgram = async (req, res) => {
   try {
     const { application_id } = req.params;
@@ -368,6 +367,103 @@ export const getSessionHistory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch session history",
+      error: error.message
+    });
+  }
+};
+
+// 📋 GET ALL COACH'S SESSIONS (for viewing/editing)
+export const getCoachSessions = async (req, res) => {
+  try {
+    const coach_id = req.session.user?.user_id;
+
+    if (!coach_id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized - Coach login required"
+      });
+    }
+
+    const [sessions] = await pool.query(
+      `SELECT 
+        ts.session_id,
+        ts.application_id,
+        ts.session_date,
+        ts.user_weight,
+        ts.notes,
+        ts.created_at,
+        a.name as user_name,
+        p.title as package_title,
+        a.training_status
+      FROM training_sessions ts
+      LEFT JOIN applications a ON ts.application_id = a.application_id
+      LEFT JOIN packages p ON a.package_id = p.package_id
+      WHERE ts.coach_id = ?
+      ORDER BY ts.session_date DESC, ts.created_at DESC`,
+      [coach_id]
+    );
+
+    res.status(200).json({
+      success: true,
+      sessions,
+      count: sessions.length
+    });
+
+  } catch (error) {
+    console.error("Error fetching coach sessions:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch sessions",
+      error: error.message
+    });
+  }
+};
+
+// ✏️ UPDATE TRAINING SESSION (Coach edits weight/notes)
+export const updateTrainingSession = async (req, res) => {
+  try {
+    const { session_id } = req.params;
+    const { user_weight, notes } = req.body;
+    const coach_id = req.session.user?.user_id;
+
+    if (!coach_id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized - Coach login required"
+      });
+    }
+
+    // Verify this session belongs to this coach
+    const [sessions] = await pool.query(
+      "SELECT * FROM training_sessions WHERE session_id = ? AND coach_id = ?",
+      [session_id, coach_id]
+    );
+
+    if (sessions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Session not found or you don't have access"
+      });
+    }
+
+    // Update the session
+    await pool.query(
+      `UPDATE training_sessions 
+       SET user_weight = ?, notes = ?, updated_at = NOW()
+       WHERE session_id = ?`,
+      [user_weight || null, notes || null, session_id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Session updated successfully"
+    });
+
+  } catch (error) {
+    console.error("Error updating session:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update session",
       error: error.message
     });
   }
