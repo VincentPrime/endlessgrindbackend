@@ -10,6 +10,7 @@ import trainingRoutes from "./routes/trainingroute/trainingRoutes.js"
 import admindashboardRoutes from "./routes/admindashboardroute/admindashboardRoutes.js"
 import bookingRoutes from "./routes/bookingRoutes/bookingRoutes.js"
 import forgotPasswordRoutes from "./routes/forgetpasswordRoutes/forgotpasswordRoutes.js"
+import progressRoutes from "./routes/progressroutes/progressRoutes.js"
 
 const app = express();
 const PORT = 4000;
@@ -72,6 +73,7 @@ app.use("/api", trainingRoutes)
 app.use("/api", admindashboardRoutes)
 app.use("/api/bookings",bookingRoutes)
 app.use('/api/auth/forgot-password', forgotPasswordRoutes);
+app.use("/api", progressRoutes)
 
 // Protected routes
 app.get("/api/admin/users", requireAdmin, (req, res) => {
