@@ -446,10 +446,10 @@ export const updateTrainingSession = async (req, res) => {
       });
     }
 
-    // Update the session
+    // Update the session (removed updated_at since column doesn't exist)
     await pool.query(
       `UPDATE training_sessions 
-       SET user_weight = ?, notes = ?, updated_at = NOW()
+       SET user_weight = ?, notes = ?
        WHERE session_id = ?`,
       [user_weight || null, notes || null, session_id]
     );
