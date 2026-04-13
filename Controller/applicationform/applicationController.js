@@ -7,7 +7,7 @@ import {
 } from '../../service/emailService.js';
 
 const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY;
-const PAYMONGO_API_URL = "https://api.paymongo.com/v1/";
+const PAYMONGO_API_URL = "https://api.paymongo.com/v1";
 
 // 📝 SUBMIT APPLICATION (creates PayMongo payment link)
 export const submitApplication = async (req, res) => {
@@ -94,72 +94,156 @@ export const submitApplication = async (req, res) => {
     const application_id = result.insertId;
 
     // Create PayMongo Payment Link
-    try {
-      const paymentLinkResponse = await axios.post(
-      `${PAYMONGO_API_URL}/checkout_sessions`,
-      {
-        data: {
-          attributes: {
-            billing: {
-              name: name,
-              email: email,
-            },
-            line_items: [
-              {
-                currency: "PHP",
-                amount: amountInCentavos,
-                description: `Gym Membership - ${packageInfo.title}`,
-                name: packageInfo.title,
-                quantity: 1,
-              }
-            ],
-            payment_method_types: [
-              "card",
-              "gcash",
-              "maya",
-              "grab_pay",
-              "billease",
-              "dob"
-            ],
-            success_url: `${process.env.FRONTEND_URL}/Users/application?payment=success`,
-            cancel_url: `${process.env.FRONTEND_URL}/Users/application?payment=cancelled`,
-            metadata: {
-              application_id: application_id.toString(),
-              user_id: user_id.toString(),
-              package_id: package_id.toString()
+  //   try {
+  //     const paymentLinkResponse = await axios.post(
+  //   `${PAYMONGO_API_URL}/checkout_sessions`,
+  //   {
+  //     data: {
+  //       attributes: {
+  //         billing: {
+  //           name: name,
+  //           email: email,
+  //         },
+  //         line_items: [
+  //           {
+  //             currency: "PHP",
+  //             amount: amountInCentavos,
+  //             description: `Gym Membership - ${packageInfo.title}`,
+  //             name: packageInfo.title,
+  //             quantity: 1,
+  //           }
+  //         ],
+  //         payment_method_types: [
+  //           "card",
+  //           "gcash",
+  //           "maya",
+  //           "grab_pay",
+  //           "billease",
+  //           "dob"
+  //         ],
+  //         success_url: `${process.env.FRONTEND_URL}/Users/application?payment=success`,
+  //         cancel_url: `${process.env.FRONTEND_URL}/Users/application?payment=cancelled`,
+  //         metadata: {
+  //           application_id: application_id.toString(),
+  //           user_id: user_id.toString(),
+  //           package_id: package_id.toString()
+  //         }
+  //       }
+  //     }
+  //   },
+  //   {
+  //     headers: {
+  //       Authorization: `Basic ${Buffer.from(PAYMONGO_SECRET_KEY).toString("base64")}`,
+  //       "Content-Type": "application/json"
+  //     }
+  //   }
+  // );
+
+  // // Update how you get the URL - checkout session uses different field
+  // const paymentLink = paymentLinkResponse.data.data.attributes.checkout_url;
+  // const checkoutSessionId = paymentLinkResponse.data.data.id;
+
+  // // Store session ID instead of payment link ID
+  // await pool.query(
+  //   "UPDATE applications SET payment_id = ? WHERE application_id = ?",
+  //   [checkoutSessionId, application_id]
+  // );
+
+  //   return res.status(201).json({
+  //   success: true,
+  //   message: "Application submitted successfully",
+  //   application_id,
+  //   payment_url: paymentLink,
+  //   amount: packageInfo.price
+  // });
+
+  //   } catch (paymentError) {
+  //     console.error("PayMongo Error:", paymentError.response?.data || paymentError.message);
+      
+  //     // Rollback: delete the application if payment link creation fails
+  //     await pool.query("DELETE FROM applications WHERE application_id = ?", [application_id]);
+      
+  //     return res.status(500).json({
+  //       success: false,
+  //       message: "Failed to create payment link",
+  //       error: paymentError.response?.data?.errors || paymentError.message
+  //     });
+  //   }
+  try {
+  const paymentLinkResponse = await axios.post(
+    `${PAYMONGO_API_URL}/checkout_sessions`,
+    {
+      data: {
+        attributes: {
+          billing: {
+            name: name,
+            email: email,
+          },
+          send_email_receipt: false,
+          show_description: true,
+          show_line_items: true,
+          line_items: [
+            {
+              currency: "PHP",
+              amount: amountInCentavos,
+              description: `Gym Membership - ${packageInfo.title}`,
+              name: packageInfo.title,
+              quantity: 1,
             }
+          ],
+          payment_method_types: [
+            "card",
+            "gcash",
+            "maya",
+            "grab_pay",
+            "dob"
+          ],
+          success_url: `${process.env.FRONTEND_URL}/Users/application?payment=success`,
+          cancel_url: `${process.env.FRONTEND_URL}/Users/application?payment=cancelled`,
+          description: `Gym Membership - ${packageInfo.title}`,
+          metadata: {
+            application_id: application_id.toString(),
+            user_id: user_id.toString(),
+            package_id: package_id.toString()
           }
         }
-      },
-      {
-        headers: {
-          Authorization: `Basic ${Buffer.from(PAYMONGO_SECRET_KEY).toString("base64")}`,
-          "Content-Type": "application/json"
-        }
       }
-    );
-
-    // Update how you get the URL - checkout session uses different field
-    const paymentLink = paymentLinkResponse.data.data.attributes.checkout_url;
-    const checkoutSessionId = paymentLinkResponse.data.data.id;
-
-    // Store session ID instead of payment link ID
-    await pool.query(
-      "UPDATE applications SET payment_id = ? WHERE application_id = ?",
-      [checkoutSessionId, application_id]
-    );
-    } catch (paymentError) {
-      console.error("PayMongo Error:", paymentError.response?.data || paymentError.message);
-      
-      // Rollback: delete the application if payment link creation fails
-      await pool.query("DELETE FROM applications WHERE application_id = ?", [application_id]);
-      
-      return res.status(500).json({
-        success: false,
-        message: "Failed to create payment link",
-        error: paymentError.response?.data?.errors || paymentError.message
-      });
+    },
+    {
+      headers: {
+        Authorization: `Basic ${Buffer.from(PAYMONGO_SECRET_KEY + ":").toString("base64")}`,
+        "Content-Type": "application/json"
+      }
     }
+  );
+
+  const paymentLink = paymentLinkResponse.data.data.attributes.checkout_url;
+  const checkoutSessionId = paymentLinkResponse.data.data.id;
+
+  await pool.query(
+    "UPDATE applications SET payment_id = ? WHERE application_id = ?",
+    [checkoutSessionId, application_id]
+  );
+
+  // ✅ THIS WAS MISSING - send response back to frontend
+  return res.status(201).json({
+    success: true,
+    message: "Application submitted successfully",
+    application_id,
+    payment_url: paymentLink,
+    amount: packageInfo.price
+  });
+
+} catch (paymentError) {
+  console.error("PayMongo Error:", paymentError.response?.data || paymentError.message);
+  await pool.query("DELETE FROM applications WHERE application_id = ?", [application_id]);
+  
+  return res.status(500).json({
+    success: false,
+    message: "Failed to create payment link",
+    error: paymentError.response?.data?.errors || paymentError.message
+  });
+}
 
   } catch (error) {
     console.error("Error submitting application:", error);
