@@ -96,45 +96,58 @@ export const submitApplication = async (req, res) => {
     // Create PayMongo Payment Link
     try {
       const paymentLinkResponse = await axios.post(
-        `${PAYMONGO_API_URL}/links`,
-        {
-          data: {
-            attributes: {
-              amount: amountInCentavos,
-              description: `Gym Membership - ${packageInfo.title}`,
-              remarks: `Application ID: ${application_id}`,
-              metadata: {
-                application_id: application_id.toString(),
-                user_id: user_id.toString(),
-                package_id: package_id.toString()
+      `${PAYMONGO_API_URL}/checkout_sessions`,
+      {
+        data: {
+          attributes: {
+            billing: {
+              name: name,
+              email: email,
+            },
+            line_items: [
+              {
+                currency: "PHP",
+                amount: amountInCentavos,
+                description: `Gym Membership - ${packageInfo.title}`,
+                name: packageInfo.title,
+                quantity: 1,
               }
+            ],
+            payment_method_types: [
+              "card",
+              "gcash",
+              "maya",
+              "grab_pay",
+              "billease",
+              "dob"
+            ],
+            success_url: `${process.env.FRONTEND_URL}/Users/application?payment=success`,
+            cancel_url: `${process.env.FRONTEND_URL}/Users/application?payment=cancelled`,
+            metadata: {
+              application_id: application_id.toString(),
+              user_id: user_id.toString(),
+              package_id: package_id.toString()
             }
           }
-        },
-        {
-          headers: {
-            Authorization: `Basic ${Buffer.from(PAYMONGO_SECRET_KEY).toString("base64")}`,
-            "Content-Type": "application/json"
-          }
         }
-      );
+      },
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(PAYMONGO_SECRET_KEY).toString("base64")}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
 
-      const paymentLink = paymentLinkResponse.data.data.attributes.checkout_url;
-      const paymentLinkId = paymentLinkResponse.data.data.id;
+    // Update how you get the URL - checkout session uses different field
+    const paymentLink = paymentLinkResponse.data.data.attributes.checkout_url;
+    const checkoutSessionId = paymentLinkResponse.data.data.id;
 
-      await pool.query(
-        "UPDATE applications SET payment_id = ? WHERE application_id = ?",
-        [paymentLinkId, application_id]
-      );
-
-      res.status(201).json({
-        success: true,
-        message: "Application submitted successfully",
-        application_id,
-        payment_url: paymentLink,
-        amount: packageInfo.price
-      });
-
+    // Store session ID instead of payment link ID
+    await pool.query(
+      "UPDATE applications SET payment_id = ? WHERE application_id = ?",
+      [checkoutSessionId, application_id]
+    );
     } catch (paymentError) {
       console.error("PayMongo Error:", paymentError.response?.data || paymentError.message);
       
@@ -261,7 +274,7 @@ export const paymongoWebhook = async (req, res) => {
     const event = req.body.data;
 
     // Handle payment success
-    if (event.attributes.type === "link.payment.paid") {
+    if (event.attributes.type === "checkout_session.payment.paid") {
       const paymentLinkId = event.attributes.data.attributes.payment_link_id;
       const paymentId = event.attributes.data.id;
       
