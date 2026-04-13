@@ -1,4 +1,3 @@
-import axios from "axios";
 import express from "express";
 import {
   submitApplication,
@@ -53,23 +52,5 @@ router.delete("/applications/archived/:application_id", requireAdmin, deleteArch
 
 // 🗑️ Admin: Permanently delete ALL archived applications
 router.delete("/applications/archived/delete-all", requireAdmin, deleteAllArchivedApplications);
-
-
-// 🔍 TEMP: Check available payment methods
-router.get("/check-payment-methods", async (req, res) => {
-  try {
-    const response = await axios.get(
-      'https://api.paymongo.com/v1/payment_methods/available',
-      {
-        headers: {
-          Authorization: `Basic ${Buffer.from(process.env.PAYMONGO_SECRET_KEY + ":").toString("base64")}`
-        }
-      }
-    );
-    res.json(response.data);
-  } catch (error) {
-    res.json({ error: error.response?.data || error.message });
-  }
-});
 
 export default router;
