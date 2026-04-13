@@ -93,6 +93,7 @@ export const submitApplication = async (req, res) => {
 
     const application_id = result.insertId;
 
+    console.log("PAYMONGO KEY USED:", PAYMONGO_SECRET_KEY);
     // Create PayMongo Payment Link
     try {
       const paymentLinkResponse = await axios.post(
