@@ -7,7 +7,7 @@ import {
 } from '../../service/emailService.js';
 
 const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY;
-const PAYMONGO_API_URL = "https://api.paymongo.com/v1";
+const PAYMONGO_API_URL = "https://api.paymongo.com/v1/payment_methods";
 
 // 📝 SUBMIT APPLICATION (creates PayMongo payment link)
 export const submitApplication = async (req, res) => {
