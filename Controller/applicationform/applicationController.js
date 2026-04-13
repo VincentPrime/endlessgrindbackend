@@ -177,8 +177,7 @@ try {
             "grab_pay",
             "dob_ubp"
           ],
-          success_url: `${process.env.FRONTEND_URL}/Users/application?payment=success`,
-          cancel_url: `${process.env.FRONTEND_URL}/Users/application?payment=cancelled`,
+          success_url: `${process.env.FRONTEND_URL}/Users/payment-success`,
           description: `Gym Membership - ${packageInfo.title}`,
           metadata: {
             application_id: application_id.toString(),
